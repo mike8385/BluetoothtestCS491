@@ -1,10 +1,14 @@
 using UnityEngine;
+using UnityEngine.UI;  // or TMPro for TextMeshPro
 using System;
+using TMPro; // TextMeshPro namespace
 using System.Text;
 using System.Runtime.InteropServices;
 
 public class BLEReceiver : MonoBehaviour
 {
+    public TMP_Text logText; // assign in Inspector
+    // If using TextMeshPro: public TMP_Text logText;
     private AndroidJavaObject bleManager;
 
     private const string DEVICE_NAME = "PICO-IMU";
@@ -43,9 +47,18 @@ public class BLEReceiver : MonoBehaviour
         {
             float[] values = new float[6];
             Buffer.BlockCopy(data, 0, values, 0, 24);
-            Debug.Log($"ax={values[0]:F2} ay={values[1]:F2} az={values[2]:F2} | gx={values[3]:F0} gy={values[4]:F0} gz={values[5]:F0}");
+
+            string message = $"ax={values[0]:F2} ay={values[1]:F2} az={values[2]:F2} | gx={values[3]:F0} gy={values[4]:F0} gz={values[5]:F0}";
+
+            // Log to console
+            Debug.Log(message);
+
+            // Update on-screen UI
+            if (logText != null)
+                logText.text = message;
         }
     }
+
 
     private class BleCallback : AndroidJavaProxy
     {
