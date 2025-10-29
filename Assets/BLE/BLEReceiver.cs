@@ -2,12 +2,13 @@ using UnityEngine;
 using TMPro; // TextMeshPro namespace
 using System;
 
+
 public class BLEReceiver : MonoBehaviour
 {
     [Header("Assign your TextMeshPro UI object")]
-    public TMP_Text logText;
+    public TMP_Text logText;  //Text Object to output data
 
-    private AndroidJavaObject bleManager;
+    private AndroidJavaObject bleManager; //Talks to the Android Bluetooth system
     private string pendingMessage = null;
 
     private const string DEVICE_NAME = "PICO-IMU";
