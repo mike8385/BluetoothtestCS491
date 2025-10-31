@@ -1,6 +1,15 @@
 ﻿using Android.BLE.Events;
 using UnityEngine;
 
+/*
+Point of this file is to manage the scan, connection,
+reading and writing, and subscription commands
+
+Doesnt make decisitons just forwards messages, recieves data from android
+
+It also Emits events when data or errors happen
+*/
+
 namespace Android.BLE
 {
     /// <summary>

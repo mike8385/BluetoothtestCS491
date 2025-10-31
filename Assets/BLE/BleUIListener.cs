@@ -6,12 +6,20 @@ using Android.BLE.Commands;
 using UnityEngine.Android;
 
 
+//Finds the adapter and attaches event handlers
+
 public class BleUIListener : MonoBehaviour
 {
-    public TMP_Text logText;
-    private BleAdapter adapter;
+    public TMP_Text logText; //The text in screen so we can see the data flooding in
 
-    void Start()
+    private BleAdapter adapter; 
+
+     // Replace with your MPU6050 BLE service UUID
+    private const string IMU_SERVICE_UUID = "YOUR_IMU_SERVICE_UUID_HERE"; 
+    private const string IMU_CHARACTERISTIC_UUID = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"; // TX from Pico
+
+
+    void Start() //Finds BLE adapter in the scene
     {
         adapter = FindObjectOfType<BleAdapter>();
         if (adapter == null)
@@ -27,47 +35,90 @@ public class BleUIListener : MonoBehaviour
         if (logText != null)
             logText.text = "Ready to scan for BLE devices...";
         
-    if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_SCAN"))
-        Permission.RequestUserPermission("android.permission.BLUETOOTH_SCAN");
+        if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_SCAN"))
+            Permission.RequestUserPermission("android.permission.BLUETOOTH_SCAN");
 
-    if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_CONNECT"))
-        Permission.RequestUserPermission("android.permission.BLUETOOTH_CONNECT");
+        if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_CONNECT"))
+            Permission.RequestUserPermission("android.permission.BLUETOOTH_CONNECT");
 
-    if (!Permission.HasUserAuthorizedPermission("android.permission.ACCESS_FINE_LOCATION"))
-        Permission.RequestUserPermission("android.permission.ACCESS_FINE_LOCATION");
+        if (!Permission.HasUserAuthorizedPermission("android.permission.ACCESS_FINE_LOCATION"))
+            Permission.RequestUserPermission("android.permission.ACCESS_FINE_LOCATION");
 
-    // Now safe to initialize BLE
-    BleManager.Instance.Initialize();
-    BleManager.Instance.QueueCommand(new DiscoverDevices(OnDeviceFound, OnScanFinished));
+        // Now safe to initialize BLE
+        BleManager.Instance.Initialize();
 
+        //Triggers scanning, and prints each device as its found
+        BleManager.Instance.QueueCommand(new DiscoverDevices(OnDeviceFound, OnScanFinished));
 
     }
 
-    // private void OnBleDataReceived(BleObject obj)
-    // {
-    //     // Example: assuming your BLE JSON contains "ax","ay","az","gx","gy","gz"
-    //     var data = JsonUtility.FromJson<MyIMUData>(JsonUtility.ToJson(obj));
-    //     string msg = $"ax={data.ax:F2} ay={data.ay:F2} az={data.az:F2} | gx={data.gx:F0} gy={data.gy:F0} gz={data.gz:F0}";
-        
-    //     Debug.Log(msg);
-    //     if (logText != null)
-    //         logText.text = msg;
-    // }
-
-    private void OnBleDataReceived(BleObject obj)
+//Dont think we use this anymore
+private void OnBleDataReceived(BleObject obj)
+{
+    if (!string.IsNullOrEmpty(obj.Base64Message))
     {
-    // Convert the BLE object to JSON text
-    string json = JsonUtility.ToJson(obj, true);
+        try
+        {
+            //Assumed the pico sends 6 floats (ax,ay,az,gx,gy,gz) as raw bytes
+            //It converts it to an array and extract each float
+            byte[] bytes = Convert.FromBase64String(obj.Base64Message);
+            
+            // Make sure length is 24 bytes (6 floats)
+            if (bytes.Length >= 24)
+            {
+                float ax = BitConverter.ToSingle(bytes, 0);
+                float ay = BitConverter.ToSingle(bytes, 4);
+                float az = BitConverter.ToSingle(bytes, 8);
+                float gx = BitConverter.ToSingle(bytes, 12);
+                float gy = BitConverter.ToSingle(bytes, 16);
+                float gz = BitConverter.ToSingle(bytes, 20);
 
-    // Log to Unity console for debugging
-    Debug.Log("Received BLE JSON:\n" + json);
-
-    // Show the JSON directly in your on-screen text box
-    if (logText != null)
+                string msg = $"ax={ax:F2} ay={ay:F2} az={az:F2} | gx={gx:F0} gy={gy:F0} gz={gz:F0}";
+                Debug.Log(msg);
+                if (logText != null)
+                    logText.text = msg;
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("Failed to decode BLE data: " + e);
+        }
+    }
+    else
     {
-        logText.text = json;
+        if (logText != null)
+            logText.text = "No data received yet";
     }
+}
+
+
+    private void OnDeviceFound(string address, string name) //Called whenever a device is found during scanning
+    {
+        Debug.Log($"Found device: {name} ({address})");
+        if (logText != null)
+            logText.text = $"Found: {name}";
+        //Connect to a device, OnDeviceConnected fires once the connection is estabilished
+        BleManager.Instance.QueueCommand(new ConnectToDevice(address, OnDeviceConnected, OnBleError));
     }
+
+    private void OnScanFinished() //Allows a loop to keep scanning, since initally it scans only for 10 seconds, now it loops
+    {
+        Debug.Log("Scan finished. Restarting scan...");
+
+        BleManager.Instance.QueueCommand(new DiscoverDevices(OnDeviceFound, OnScanFinished));
+    }
+
+    private void OnDeviceConnected(string address) //once the device connects, it sends a subscribe characterisitc so it can subscribe to the BlueTooth
+    {
+        Debug.Log("Connected to " + address);
+        if (logText != null) logText.text = $"Connected: {address}";
+
+        string characteristicUuid = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"; // TX characteristic UUID
+        //SSubscribes to characterisitcs
+        BleManager.Instance.QueueCommand(new SubscribeToCharacteristic(address, IMU_SERVICE_UUID, IMU_CHARACTERISTIC_UUID, OnCharacteristicChanged));
+    
+    }
+
 
     // helper class for parsing
     [Serializable]
@@ -83,43 +134,35 @@ public class BleUIListener : MonoBehaviour
         if (logText != null)
             logText.text = "Error: " + error;
     }
-    // void Update()
-    // {
-    //     #if UNITY_EDITOR
-
-    //         // Simulate fake BLE data once per second
-    //         if (Time.frameCount % 60 == 0)
-    //         {
-    //             float ax = UnityEngine.Random.Range(-1f, 1f);
-    //             float ay = UnityEngine.Random.Range(-1f, 1f);
-    //             float az = UnityEngine.Random.Range(-1f, 1f);
-    //             float gx = UnityEngine.Random.Range(-180f, 180f);
-    //             float gy = UnityEngine.Random.Range(-180f, 180f);
-    //             float gz = UnityEngine.Random.Range(-180f, 180f);
-
-    //             string message = $"[SIM] ax={ax:F2} ay={ay:F2} az={az:F2} | gx={gx:F0} gy={gy:F0} gz={gz:F0}";
-    //             if (logText!=null)
-    //             {
-    //                 logText.text = message;
-    //             }
-    //             Debug.Log(message);
-
-    //         }
-    //     #endif
-    // }
-
-    private void OnDeviceFound(string address, string name)
+    
+    private void OnCharacteristicChanged(byte[] bytes) //ALlows us to get the data as numbers
     {
-        Debug.Log($"Found device: {name} ({address})");
-        if (logText != null)
-            logText.text = $"Found: {name}";
+        try
+        {
+            if (bytes.Length >= 24)
+            {
+                float ax = BitConverter.ToSingle(bytes, 0);
+                float ay = BitConverter.ToSingle(bytes, 4);
+                float az = BitConverter.ToSingle(bytes, 8);
+                float gx = BitConverter.ToSingle(bytes, 12);
+                float gy = BitConverter.ToSingle(bytes, 16);
+                float gz = BitConverter.ToSingle(bytes, 20);
+
+                string msg = $"ax={ax:F2} ay={ay:F2} az={az:F2} | gx={gx:F0} gy={gy:F0} gz={gz:F0}";
+                Debug.Log(msg);
+                if (logText != null)
+                    logText.text = msg;
+            }
+        }
+        catch (Exception e)
+        {
+            Debug.LogError("Failed to decode BLE characteristic data: " + e);
+        }
     }
 
-    private void OnScanFinished()
-    {
-        Debug.Log("Scan finished. Restarting scan...");
-        BleManager.Instance.QueueCommand(new DiscoverDevices(OnDeviceFound, OnScanFinished));
-    }
+
+
+
 }
 
 
