@@ -15,7 +15,7 @@ public class BleUIListener : MonoBehaviour
     private BleAdapter adapter; 
 
      // Replace with your MPU6050 BLE service UUID
-    private const string IMU_SERVICE_UUID = "YOUR_IMU_SERVICE_UUID_HERE"; 
+    private const string IMU_SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"; 
     private const string IMU_CHARACTERISTIC_UUID = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"; // TX from Pico
 
 
@@ -24,12 +24,12 @@ public class BleUIListener : MonoBehaviour
         adapter = FindObjectOfType<BleAdapter>();
         if (adapter == null)
         {
-            Debug.LogError("BleAdapter not found!");
+            Debug.Log("BleAdapter not found!");
             return;
         }
 
         // Subscribe to real C# events
-        adapter.OnMessageReceived += OnBleDataReceived;
+        //adapter.OnMessageReceived += OnCharacteristicChanged;
         adapter.OnErrorReceived += OnBleError;
 
         if (logText != null)
@@ -74,14 +74,14 @@ private void OnBleDataReceived(BleObject obj)
                 float gz = BitConverter.ToSingle(bytes, 20);
 
                 string msg = $"ax={ax:F2} ay={ay:F2} az={az:F2} | gx={gx:F0} gy={gy:F0} gz={gz:F0}";
-                Debug.Log(msg);
+                LogDebug(msg);
                 if (logText != null)
                     logText.text = msg;
             }
         }
         catch (Exception e)
         {
-            Debug.LogError("Failed to decode BLE data: " + e);
+            Debug.Log("Failed to decode BLE data: " + e);
         }
     }
     else
@@ -94,7 +94,7 @@ private void OnBleDataReceived(BleObject obj)
 
     private void OnDeviceFound(string address, string name) //Called whenever a device is found during scanning
     {
-        Debug.Log($"Found device: {name} ({address})");
+        LogDebug($"Found device: {name} ({address})");
         if (logText != null)
             logText.text = $"Found: {name}";
         //Connect to a device, OnDeviceConnected fires once the connection is estabilished
@@ -103,14 +103,14 @@ private void OnBleDataReceived(BleObject obj)
 
     private void OnScanFinished() //Allows a loop to keep scanning, since initally it scans only for 10 seconds, now it loops
     {
-        Debug.Log("Scan finished. Restarting scan...");
+        LogDebug("Scan finished. Restarting scan...");
 
         BleManager.Instance.QueueCommand(new DiscoverDevices(OnDeviceFound, OnScanFinished));
     }
 
     private void OnDeviceConnected(string address) //once the device connects, it sends a subscribe characterisitc so it can subscribe to the BlueTooth
     {
-        Debug.Log("Connected to " + address);
+        LogDebug("Connected to " + address);
         if (logText != null) logText.text = $"Connected: {address}";
 
         string characteristicUuid = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"; // TX characteristic UUID
@@ -130,7 +130,7 @@ private void OnBleDataReceived(BleObject obj)
 
     private void OnBleError(string error)
     {
-        Debug.LogError("BLE Error: " + error);
+        Debug.Log("BLE Error: " + error);
         if (logText != null)
             logText.text = "Error: " + error;
     }
@@ -149,7 +149,7 @@ private void OnBleDataReceived(BleObject obj)
                 float gz = BitConverter.ToSingle(bytes, 20);
 
                 string msg = $"ax={ax:F2} ay={ay:F2} az={az:F2} | gx={gx:F0} gy={gy:F0} gz={gz:F0}";
-                Debug.Log(msg);
+                LogDebug(msg);
                 if (logText != null)
                     logText.text = msg;
             }
@@ -160,6 +160,12 @@ private void OnBleDataReceived(BleObject obj)
         }
     }
 
+    private void LogDebug(string msg)
+    {
+        LogDebug(msg);
+        if (logText != null)
+            logText.text += "\n" + msg;
+    }
 
 
 
