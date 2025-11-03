@@ -21,21 +21,35 @@ public class BleUIListener : MonoBehaviour
 
     
 ////////////////////////////
-    private static bool LooksLikeMac(string s)
-    {
-        return !string.IsNullOrEmpty(s) &&
-            System.Text.RegularExpressions.Regex.IsMatch(s, "^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$");
-    }
-    private static string NormalizeMac(string mac) => mac?.ToUpperInvariant();
+private static bool LooksLikeMac(string s)
+{
+    if (string.IsNullOrEmpty(s)) return false;
+    // Accept 12 hex (no colons) OR 17 with colons
+    return System.Text.RegularExpressions.Regex.IsMatch(
+        s, @"^([0-9A-Fa-f]{12}|[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5})$");
+}
 
-    // adjust to your device’s advertised name; add more terms if needed
-    private static bool NameLooksLikePico(string name)
-    {
-        if (string.IsNullOrEmpty(name)) return false;
-        return name.IndexOf("pico", StringComparison.OrdinalIgnoreCase) >= 0
-            || name.IndexOf("imu",  StringComparison.OrdinalIgnoreCase) >= 0
-            || name.IndexOf("nordic", StringComparison.OrdinalIgnoreCase) >= 0;
-    }
+private static string NormalizeMac(string mac)
+{
+    if (string.IsNullOrEmpty(mac)) return mac;
+    mac = mac.Replace(":", "").ToUpperInvariant();
+    if (mac.Length == 12)
+        mac = string.Join(":", System.Text.RegularExpressions.Regex.Split(mac, @"(?<=\G..)(?!$)"));
+    return mac; // AA:BB:CC:DD:EE:FF
+}
+
+// loosen as needed (add your exact advertized name)
+private static bool NameLooksLikePico(string name)
+{
+    if (string.IsNullOrEmpty(name)) return false;
+    return name.IndexOf("pico", StringComparison.OrdinalIgnoreCase) >= 0
+        || name.IndexOf("imu",  StringComparison.OrdinalIgnoreCase) >= 0
+        || name.IndexOf("nordic", StringComparison.OrdinalIgnoreCase) >= 0
+        || name.IndexOf("uart", StringComparison.OrdinalIgnoreCase) >= 0;
+}
+private bool isConnectingOrConnected = false;
+private readonly HashSet<string> seenThisScan = new HashSet<string>();
+
 
 
 
@@ -100,13 +114,23 @@ IEnumerator Start()
                         ", FINE_LOC(only<31)=" + fineLocState + "\n";
 
 
-    // Proceed even if location is false on SDK>=31
-    if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_SCAN") ||
-        !Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_CONNECT"))
+    if (sdkInt < 31)
     {
-        if (logText) logText.text += "Required BLE permissions not granted. Aborting.\n";
-        yield break;
+        // Pre-Android 12 truly needs Location + classic BLUETOOTH perms
+        if (!scanGranted || !connectGranted ||
+            !Permission.HasUserAuthorizedPermission("android.permission.ACCESS_FINE_LOCATION"))
+        {
+            if (logText) logText.text += "Pre-Android12: missing BLE/Location permission. Aborting.\n";
+            yield break;
+        }
     }
+    else
+    {
+        // Android 12+: Unity may misreport; try anyway and let OS throw if blocked
+        if (!scanGranted || !connectGranted)
+            if (logText) logText.text += "Unity may misreport BLE perms; attempting scan anyway...\n";
+    }
+
 
     // --- Ensure a BleAdapter exists in the scene ---
     adapter = FindObjectOfType<BleAdapter>();
@@ -165,30 +189,30 @@ IEnumerator Start()
     //     BleManager.Instance.QueueCommand(new ConnectToDevice(address, OnDeviceConnected, OnBleError));
     // }
 
-    private void OnDeviceFound(string address, string name)
+private void OnDeviceFound(string p1, string p2)
 {
-    // Filter by name first: ignore non-Pico devices
-    if (!NameLooksLikePico(name))
-        return;
+    // Auto-detect which param is MAC vs name
+    string macRaw = LooksLikeMac(p1) ? p1 : (LooksLikeMac(p2) ? p2 : null);
+    string name   = LooksLikeMac(p1) ? p2 : p1;
 
-    // Require a proper MAC address and normalize it
-    if (!LooksLikeMac(address))
-        return;
-    address = NormalizeMac(address);
+    if (logText) logText.text += $"RAW Found: mac='{macRaw}' name='{name}'\n";
+    if (macRaw == null) return; // neither looked like a MAC
 
-    // De-dupe
-    if (connectedDevices.Contains(address))
-        return;
+    string mac = NormalizeMac(macRaw);
 
-    connectedDevices.Add(address);
+    // If name is present, require Pico-like; if empty, allow (many devices advertise name later)
+    if (!string.IsNullOrEmpty(name) && !NameLooksLikePico(name)) return;
 
-    Debug.Log($"Found Pico device: {name} ({address})");
-    if (logText != null)
-        logText.text += $"Found Pico: {name}\n";
+    if (seenThisScan.Contains(mac) || connectedDevices.Contains(mac) || isConnectingOrConnected) return;
 
-    // Optional: tiny delay helps some libs cache the device before connect
-    StartCoroutine(ConnectAfterShortDelay(address));
+    seenThisScan.Add(mac);
+    connectedDevices.Add(mac);
+    isConnectingOrConnected = true;
+
+    if (logText) logText.text += $"Candidate: name='{name}' mac='{mac}'\n";
+    StartCoroutine(ConnectAfterShortDelay(mac));
 }
+
 
 private IEnumerator ConnectAfterShortDelay(string mac)
 {
@@ -197,16 +221,18 @@ private IEnumerator ConnectAfterShortDelay(string mac)
 }
 
 
+
     private void OnScanFinished()
     {
         Debug.Log("Scan finished.");
-        if (logText != null)
-            logText.text += "Scan finished.\n";
+        if (logText != null) logText.text += "Scan finished.\n";
 
-        // Optional: restart scan only if no device was connected
+        seenThisScan.Clear(); // allow same MAC next scan
+
         if (connectedDevices.Count == 0)
             StartCoroutine(RestartScanWithDelay());
     }
+
 
     private IEnumerator RestartScanWithDelay()
     {
@@ -214,24 +240,38 @@ private IEnumerator ConnectAfterShortDelay(string mac)
         BleManager.Instance.QueueCommand(new DiscoverDevices(OnDeviceFound, OnScanFinished));
     }
 
-    private void OnDeviceConnected(string address)
-    {
-        Debug.Log("Connected to " + address);
-        if (logText != null)
-            logText.text += $"Connected: {address}\n";
+private void OnDeviceConnected(string address)
+{
+    string mac = NormalizeMac(address);
+    Debug.Log("Connected to " + mac);
+    if (logText != null) logText.text += $"Connected: {mac}\n";
 
-        // Subscribe to the characteristic
-        BleManager.Instance.QueueCommand(
-            new SubscribeToCharacteristic(address, IMU_SERVICE_UUID, IMU_CHARACTERISTIC_UUID, OnCharacteristicChanged)
-        );
+    BleManager.Instance.QueueCommand(
+        new SubscribeToCharacteristic(mac, IMU_SERVICE_UUID, IMU_CHARACTERISTIC_UUID, OnCharacteristicChanged)
+    );
+}
+
+
+private void OnBleError(string error)
+{
+    Debug.LogError("BLE Error: " + error);
+    if (logText != null) logText.text += $"BLE Error: {error}\n";
+
+    if (error.IndexOf("SecurityException", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        error.IndexOf("android.permission", StringComparison.OrdinalIgnoreCase) >= 0)
+    {
+        if (logText) logText.text +=
+            "=> OS blocked BLE. Check App Permissions > Nearby devices, or reinstall and allow prompts.\n";
     }
 
-    private void OnBleError(string error)
+    if (error.IndexOf("can't find connected device", StringComparison.OrdinalIgnoreCase) >= 0 ||
+        error.IndexOf("cant find connected device", StringComparison.OrdinalIgnoreCase) >= 0)
     {
-        Debug.LogError("BLE Error: " + error);
-        if (logText != null)
-            logText.text += $"BLE Error: {error}\n";
+        isConnectingOrConnected = false;
+        StartCoroutine(RestartScanWithDelay());
     }
+}
+
 
     private void OnCharacteristicChanged(byte[] bytes)
     {
