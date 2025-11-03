@@ -16,6 +16,9 @@ public class BleUIListener : MonoBehaviour
     // Replace with your MPU6050 BLE service UUIDs
     private const string IMU_SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
     private const string IMU_CHARACTERISTIC_UUID = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"; // TX from Pico
+    // If you know the Pico's MAC, set it here (any case/with or without colons is fine)
+    private const string TARGET_MAC = "28:CD:C1:14:B8:3C";
+
 
     private HashSet<string> connectedDevices = new HashSet<string>();
 
@@ -189,29 +192,32 @@ IEnumerator Start()
     //     BleManager.Instance.QueueCommand(new ConnectToDevice(address, OnDeviceConnected, OnBleError));
     // }
 
+// Whitelist connect: only your Pico's MAC
 private void OnDeviceFound(string p1, string p2)
 {
-    // Auto-detect which param is MAC vs name
+    // Detect which param is MAC vs name
     string macRaw = LooksLikeMac(p1) ? p1 : (LooksLikeMac(p2) ? p2 : null);
     string name   = LooksLikeMac(p1) ? p2 : p1;
 
-    if (logText) logText.text += $"RAW Found: mac='{macRaw}' name='{name}'\n";
-    if (macRaw == null) return; // neither looked like a MAC
-
+    if (macRaw == null) return;                 // neither looked like a MAC
     string mac = NormalizeMac(macRaw);
 
-    // If name is present, require Pico-like; if empty, allow (many devices advertise name later)
-    if (!string.IsNullOrEmpty(name) && !NameLooksLikePico(name)) return;
+    // Only proceed if it's the Pico you whitelisted
+    if (NormalizeMac(TARGET_MAC) != mac) return;
 
+    // De-dupe and prevent multiple simultaneous connects
     if (seenThisScan.Contains(mac) || connectedDevices.Contains(mac) || isConnectingOrConnected) return;
 
     seenThisScan.Add(mac);
     connectedDevices.Add(mac);
     isConnectingOrConnected = true;
 
-    if (logText) logText.text += $"Candidate: name='{name}' mac='{mac}'\n";
+    if (logText) logText.text += $"✅ Found Pico ({mac}) name='{name}'\n";
+    Debug.Log($"✅ Found Pico ({mac}) name='{name}'");
+
     StartCoroutine(ConnectAfterShortDelay(mac));
 }
+
 
 
 private IEnumerator ConnectAfterShortDelay(string mac)
