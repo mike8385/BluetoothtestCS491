@@ -4,6 +4,8 @@ using Android.BLE;
 using System; 
 using Android.BLE.Commands; 
 using UnityEngine.Android;
+using System.Collections;
+
 
 
 //Finds the adapter and attaches event handlers
@@ -19,38 +21,79 @@ public class BleUIListener : MonoBehaviour
     private const string IMU_CHARACTERISTIC_UUID = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"; // TX from Pico
 
 
-    void Start() //Finds BLE adapter in the scene
-    {
-        adapter = FindObjectOfType<BleAdapter>();
-        if (adapter == null)
-        {
-            Debug.Log("BleAdapter not found!");
-            return;
-        }
+    // void Start() //Finds BLE adapter in the scene
+    // {
+    //     adapter = FindObjectOfType<BleAdapter>();
+    //     if (adapter == null)
+    //     {
+    //         Debug.LogError("BleAdapter not found!");
+    //         return;
+    //     }
 
-        // Subscribe to real C# events
-        //adapter.OnMessageReceived += OnCharacteristicChanged;
-        adapter.OnErrorReceived += OnBleError;
+    //     // Subscribe to real C# events
+    //     //adapter.OnMessageReceived += OnCharacteristicChanged;
+    //     adapter.OnErrorReceived += OnBleError;
 
-        if (logText != null)
-            logText.text = "Ready to scan for BLE devices...";
+    //     if (logText != null)
+    //         logText.text = "Ready to scan for BLE devices...";
         
-        if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_SCAN"))
-            Permission.RequestUserPermission("android.permission.BLUETOOTH_SCAN");
+    //     if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_SCAN"))
+    //         Permission.RequestUserPermission("android.permission.BLUETOOTH_SCAN");
 
-        if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_CONNECT"))
-            Permission.RequestUserPermission("android.permission.BLUETOOTH_CONNECT");
+    //     if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_CONNECT"))
+    //         Permission.RequestUserPermission("android.permission.BLUETOOTH_CONNECT");
 
-        if (!Permission.HasUserAuthorizedPermission("android.permission.ACCESS_FINE_LOCATION"))
-            Permission.RequestUserPermission("android.permission.ACCESS_FINE_LOCATION");
+    //     if (!Permission.HasUserAuthorizedPermission("android.permission.ACCESS_FINE_LOCATION"))
+    //         Permission.RequestUserPermission("android.permission.ACCESS_FINE_LOCATION");
 
-        // Now safe to initialize BLE
-        BleManager.Instance.Initialize();
+    //     // Now safe to initialize BLE
+    //     BleManager.Instance.Initialize();
 
-        //Triggers scanning, and prints each device as its found
-        BleManager.Instance.QueueCommand(new DiscoverDevices(OnDeviceFound, OnScanFinished));
+    //     //Triggers scanning, and prints each device as its found
+    //     BleManager.Instance.QueueCommand(new DiscoverDevices(OnDeviceFound, OnScanFinished));
 
+    // }
+
+    IEnumerator Start()
+{
+    logText.text = "Initializing BLE system...";
+
+    // Request required permissions
+    if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_SCAN"))
+        Permission.RequestUserPermission("android.permission.BLUETOOTH_SCAN");
+    if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_CONNECT"))
+        Permission.RequestUserPermission("android.permission.BLUETOOTH_CONNECT");
+    if (!Permission.HasUserAuthorizedPermission("android.permission.ACCESS_FINE_LOCATION"))
+        Permission.RequestUserPermission("android.permission.ACCESS_FINE_LOCATION");
+
+    // Wait until all permissions are granted
+    yield return new WaitUntil(() =>
+        Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_SCAN") &&
+        Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_CONNECT") &&
+        Permission.HasUserAuthorizedPermission("android.permission.ACCESS_FINE_LOCATION")
+    );
+
+    // Find BLE adapter
+    adapter = FindObjectOfType<BleAdapter>();
+    if (adapter == null)
+    {
+        Debug.LogError("BleAdapter not found!");
+        logText.text = "BleAdapter not found!";
+        yield break;
     }
+
+    adapter.OnErrorReceived += OnBleError;
+
+    // Initialize BLE Manager
+    BleManager.Instance.Initialize();
+
+    // Wait a moment before scanning (let adapter initialize)
+    yield return new WaitForSeconds(1f);
+
+    LogDebug("Starting BLE scan...");
+    BleManager.Instance.QueueCommand(new DiscoverDevices(OnDeviceFound, OnScanFinished));
+}
+
 
 //Dont think we use this anymore
 private void OnBleDataReceived(BleObject obj)
@@ -81,7 +124,7 @@ private void OnBleDataReceived(BleObject obj)
         }
         catch (Exception e)
         {
-            Debug.Log("Failed to decode BLE data: " + e);
+            Debug.LogError("Failed to decode BLE data: " + e);
         }
     }
     else
@@ -130,7 +173,7 @@ private void OnBleDataReceived(BleObject obj)
 
     private void OnBleError(string error)
     {
-        Debug.Log("BLE Error: " + error);
+        Debug.LogError("BLE Error: " + error);
         if (logText != null)
             logText.text = "Error: " + error;
     }
@@ -162,7 +205,7 @@ private void OnBleDataReceived(BleObject obj)
 
     private void LogDebug(string msg)
     {
-        LogDebug(msg);
+        Debug.Log(msg);
         if (logText != null)
             logText.text += "\n" + msg;
     }
