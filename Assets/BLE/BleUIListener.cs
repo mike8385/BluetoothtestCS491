@@ -19,6 +19,27 @@ public class BleUIListener : MonoBehaviour
 
     private HashSet<string> connectedDevices = new HashSet<string>();
 
+    
+////////////////////////////
+    private static bool LooksLikeMac(string s)
+    {
+        return !string.IsNullOrEmpty(s) &&
+            System.Text.RegularExpressions.Regex.IsMatch(s, "^[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}$");
+    }
+    private static string NormalizeMac(string mac) => mac?.ToUpperInvariant();
+
+    // adjust to your device’s advertised name; add more terms if needed
+    private static bool NameLooksLikePico(string name)
+    {
+        if (string.IsNullOrEmpty(name)) return false;
+        return name.IndexOf("pico", StringComparison.OrdinalIgnoreCase) >= 0
+            || name.IndexOf("imu",  StringComparison.OrdinalIgnoreCase) >= 0
+            || name.IndexOf("nordic", StringComparison.OrdinalIgnoreCase) >= 0;
+    }
+
+
+
+//////////////////////////////////
 IEnumerator Start()
 {
     if (logText) logText.text = "Initializing BLE system...\n";
@@ -129,20 +150,52 @@ IEnumerator Start()
 }
 
 
+    // private void OnDeviceFound(string address, string name)
+    // {
+    //     if (connectedDevices.Contains(address))
+    //         return; // already connected
+
+    //     connectedDevices.Add(address);
+
+    //     Debug.Log($"Found device: {name} ({address})");
+    //     if (logText != null)
+    //         logText.text += $"Found device: {name}\n";
+
+    //     // Connect to the device
+    //     BleManager.Instance.QueueCommand(new ConnectToDevice(address, OnDeviceConnected, OnBleError));
+    // }
+
     private void OnDeviceFound(string address, string name)
-    {
-        if (connectedDevices.Contains(address))
-            return; // already connected
+{
+    // Filter by name first: ignore non-Pico devices
+    if (!NameLooksLikePico(name))
+        return;
 
-        connectedDevices.Add(address);
+    // Require a proper MAC address and normalize it
+    if (!LooksLikeMac(address))
+        return;
+    address = NormalizeMac(address);
 
-        Debug.Log($"Found device: {name} ({address})");
-        if (logText != null)
-            logText.text += $"Found device: {name}\n";
+    // De-dupe
+    if (connectedDevices.Contains(address))
+        return;
 
-        // Connect to the device
-        BleManager.Instance.QueueCommand(new ConnectToDevice(address, OnDeviceConnected, OnBleError));
-    }
+    connectedDevices.Add(address);
+
+    Debug.Log($"Found Pico device: {name} ({address})");
+    if (logText != null)
+        logText.text += $"Found Pico: {name}\n";
+
+    // Optional: tiny delay helps some libs cache the device before connect
+    StartCoroutine(ConnectAfterShortDelay(address));
+}
+
+private IEnumerator ConnectAfterShortDelay(string mac)
+{
+    yield return new WaitForSeconds(0.25f);
+    BleManager.Instance.QueueCommand(new ConnectToDevice(mac, OnDeviceConnected, OnBleError));
+}
+
 
     private void OnScanFinished()
     {
