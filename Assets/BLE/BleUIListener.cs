@@ -19,48 +19,115 @@ public class BleUIListener : MonoBehaviour
 
     private HashSet<string> connectedDevices = new HashSet<string>();
 
-    IEnumerator Start()
+IEnumerator Start()
+{
+    if (logText) logText.text = "Initializing BLE system...\n";
+
+    // --- Log Android SDK ---
+    int sdkInt = 0;
+#if UNITY_ANDROID && !UNITY_EDITOR
+    using (var version = new AndroidJavaClass("android.os.Build$VERSION"))
+        sdkInt = version.GetStatic<int>("SDK_INT");
+#endif
+    if (logText) logText.text += $"Android SDK: {sdkInt}\n";
+
+    // --- Request runtime permissions depending on SDK ---
+    bool needsLocation = sdkInt < 31; // Android 11 and below
+    bool requestedSomething = false;
+
+    if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_SCAN"))
     {
-        if (logText != null)
-            logText.text = "Initializing BLE system...\n";
+        Permission.RequestUserPermission("android.permission.BLUETOOTH_SCAN");
+        requestedSomething = true;
+    }
+    if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_CONNECT"))
+    {
+        Permission.RequestUserPermission("android.permission.BLUETOOTH_CONNECT");
+        requestedSomething = true;
+    }
+    if (needsLocation && !Permission.HasUserAuthorizedPermission("android.permission.ACCESS_FINE_LOCATION"))
+    {
+        Permission.RequestUserPermission("android.permission.ACCESS_FINE_LOCATION");
+        requestedSomething = true;
+    }
 
-        // 1️⃣ Request permissions
-        if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_SCAN"))
-            Permission.RequestUserPermission("android.permission.BLUETOOTH_SCAN");
-        if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_CONNECT"))
-            Permission.RequestUserPermission("android.permission.BLUETOOTH_CONNECT");
-        if (!Permission.HasUserAuthorizedPermission("android.permission.ACCESS_FINE_LOCATION"))
-            Permission.RequestUserPermission("android.permission.ACCESS_FINE_LOCATION");
-
-        yield return new WaitUntil(() =>
+    // --- Wait (with timeout) for whatever we requested to settle ---
+    float t = 0f, timeout = 8f;
+    while (t < timeout)
+    {
+        bool ok =
             Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_SCAN") &&
             Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_CONNECT") &&
-            Permission.HasUserAuthorizedPermission("android.permission.ACCESS_FINE_LOCATION")
-        );
+            (!needsLocation || Permission.HasUserAuthorizedPermission("android.permission.ACCESS_FINE_LOCATION"));
 
-        logText.text += "Permissions granted.\n";
+        if (ok) break;
 
-        // 2️⃣ Find BLE adapter
-        adapter = FindObjectOfType<BleAdapter>();
-        if (adapter == null)
-        {
-            Debug.LogError("BleAdapter not found!");
-            logText.text += "BleAdapter not found!\n";
-            yield break;
-        }
-
-        adapter.OnErrorReceived += OnBleError;
-
-        // 3️⃣ Initialize BLE manager
-        BleManager.Instance.Initialize();
-        logText.text += "BLE Manager initialized.\n";
-
-        yield return new WaitForSeconds(1f); // small delay before scanning
-
-        // 4️⃣ Start scanning
-        logText.text += "Starting BLE scan...\n";
-        BleManager.Instance.QueueCommand(new DiscoverDevices(OnDeviceFound, OnScanFinished));
+        t += Time.unscaledDeltaTime;
+        yield return null;
     }
+
+    // Log final permission state so you can see what's missing
+    bool scanGranted    = Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_SCAN");
+    bool connectGranted = Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_CONNECT");
+    string fineLocState = needsLocation
+        ? Permission.HasUserAuthorizedPermission("android.permission.ACCESS_FINE_LOCATION").ToString()
+        : "N/A";
+
+    if (logText)
+        logText.text += "SCAN=" + scanGranted +
+                        ", CONNECT=" + connectGranted +
+                        ", FINE_LOC(only<31)=" + fineLocState + "\n";
+
+
+    // Proceed even if location is false on SDK>=31
+    if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_SCAN") ||
+        !Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_CONNECT"))
+    {
+        if (logText) logText.text += "Required BLE permissions not granted. Aborting.\n";
+        yield break;
+    }
+
+    // --- Ensure a BleAdapter exists in the scene ---
+    adapter = FindObjectOfType<BleAdapter>();
+    if (adapter == null)
+    {
+        var go = new GameObject("BleAdapter");
+        adapter = go.AddComponent<BleAdapter>();
+        if (logText) logText.text += "Created BleAdapter at runtime.\n";
+    }
+
+    adapter.OnErrorReceived += OnBleError;
+
+    // --- Initialize & sanity check Bluetooth enabled ---
+    BleManager.Instance.Initialize();
+    if (logText) logText.text += "BLE Manager initialized.\n";
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+    try
+    {
+        using (var bluetoothAdapterClass = new AndroidJavaClass("android.bluetooth.BluetoothAdapter"))
+        using (var adapterObj = bluetoothAdapterClass.CallStatic<AndroidJavaObject>("getDefaultAdapter"))
+        {
+            bool isEnabled = adapterObj != null && adapterObj.Call<bool>("isEnabled");
+            if (!isEnabled)
+            {
+                if (logText) logText.text += "Bluetooth is OFF on the headset. Turn it on in settings.\n";
+                yield break;
+            }
+        }
+    }
+    catch (Exception e)
+    {
+        Debug.LogWarning("Could not query Bluetooth state: " + e);
+    }
+#endif
+
+    yield return new WaitForSeconds(1f);
+
+    if (logText) logText.text += "Starting BLE scan...\n";
+    BleManager.Instance.QueueCommand(new DiscoverDevices(OnDeviceFound, OnScanFinished));
+}
+
 
     private void OnDeviceFound(string address, string name)
     {
