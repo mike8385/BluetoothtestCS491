@@ -2,6 +2,11 @@
 using System.Collections.Generic;
 using UnityEngine;
 
+/*
+The Brains of the scripts, it executes commands like scan and connect
+*/
+
+
 namespace Android.BLE
 {
     /// <summary>
