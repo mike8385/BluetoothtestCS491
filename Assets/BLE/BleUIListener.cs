@@ -45,13 +45,6 @@ public class BleUIListener : MonoBehaviour
 
     private System.Collections.IEnumerator Start()
     {
-        adapter = FindObjectOfType<BleAdapter>();
-        if (!adapter) { Debug.LogError("BleAdapter not found!"); yield break; }
-
-        adapter.OnErrorReceived += OnBleError;
-
-
-        if (logText) logText.text = "Ready to scan for BLE devices...";
 
         if (!Permission.HasUserAuthorizedPermission("android.permission.BLUETOOTH_SCAN"))
             Permission.RequestUserPermission("android.permission.BLUETOOTH_SCAN");
@@ -70,6 +63,13 @@ public class BleUIListener : MonoBehaviour
             yield return null;
         }
 
+        adapter = FindObjectOfType<BleAdapter>();
+        if (!adapter) { Debug.LogError("BleAdapter not found!"); yield break; }
+
+        adapter.OnErrorReceived += OnBleError;
+
+
+        if (logText) logText.text = "Ready to scan for BLE devices...";
 
         BleManager.Instance.Initialize();
 
@@ -119,7 +119,7 @@ public class BleUIListener : MonoBehaviour
 //     }
 // }
 
-
+//Filters PICO by name or exact MAC address. If it matches and we arent connected, it queues it to ConnectToDevice
 private void OnDeviceFound(string address, string name)
 {
     bool looksLikePico =
@@ -136,7 +136,7 @@ private void OnDeviceFound(string address, string name)
 
 
 
-
+//If its not connected, It restarts scaning (Keeps searching until found)
 private void OnScanFinished()
 {
     if (_connected) return;                 // don't restart scan if already connected
@@ -144,6 +144,7 @@ private void OnScanFinished()
     BleManager.Instance.QueueCommand(new DiscoverDevices(OnDeviceFound, OnScanFinished));
 }
 
+//Marks it as connected then starts a coroutine to subscribe a short moment later
 private void OnDeviceConnected(string address)
 {
     isConnecting = false;
@@ -152,6 +153,10 @@ private void OnDeviceConnected(string address)
     StartCoroutine(SubscribeAfter(address));
 }
 
+
+//Waits 3 seconds then calls SubscribeToCharacterisitc on the TX characteristic
+//customGatt: true is required for 128-bit UUIDs like NUS
+//Sends 'hi' to nudge stack
 private System.Collections.IEnumerator SubscribeAfter(string address)
 {
     // small grace after connect
@@ -217,6 +222,8 @@ private System.Collections.IEnumerator SubscribeAfter(string address)
         public float gx, gy, gz;
     }
 
+
+//Logs the error, restart states, and restarts scanning
 private void OnBleError(string error)
 {
     isConnecting = false;
@@ -259,6 +266,9 @@ private void OnBleError(string error)
     //     }
     // }
 
+
+//Notification Handler, if its byte length is 24, it parses 6 floats (sx,ay,az,gx,gy,gz)
+//If its byte length is 12, then it trys to decide if its accel or gyro (only makes sense if you purposely send two seperate 12 byte floats)
 private void OnCharacteristicChanged(byte[] bytes)
 {
     try
@@ -283,21 +293,22 @@ private void OnCharacteristicChanged(byte[] bytes)
 
         if (bytes.Length == 12)
         {
-            float f0 = BitConverter.ToSingle(bytes, 0);
-            float f1 = BitConverter.ToSingle(bytes, 4);
-            float f2 = BitConverter.ToSingle(bytes, 8);
+            short ax_i = BitConverter.ToInt16(bytes, 0);
+            short ay_i = BitConverter.ToInt16(bytes, 2);
+            short az_i = BitConverter.ToInt16(bytes, 4);
+            short gx_i = BitConverter.ToInt16(bytes, 6);
+            short gy_i = BitConverter.ToInt16(bytes, 8);
+            short gz_i = BitConverter.ToInt16(bytes,10);
 
-            // Heuristic: accel magnitudes typically < ~5 g
-            if (Mathf.Abs(f0) < 5f && Mathf.Abs(f1) < 5f && Mathf.Abs(f2) < 5f)
-                _acc3 = new[] { f0, f1, f2 };
-            else
-                _gyro3 = new[] { f0, f1, f2 };
+            float ax = ax_i/1000f, ay = ay_i/1000f, az = az_i/1000f;
+            float gx = gx_i/100f,  gy = gy_i/100f,  gz = gz_i/100f;
 
-            if (_acc3 != null && _gyro3 != null)
-                Show(_acc3[0], _acc3[1], _acc3[2], _gyro3[0], _gyro3[1], _gyro3[2]);
-
+            Debug.Log($"IMU ax={ax:F3} ay={ay:F3} az={az:F3} gx={gx:F2} gy={gy:F2} gz={gz:F2}");
+            // (Optional) also update on-screen TMP text
+            if (logText) logText.text = $"ax={ax:F2} ay={ay:F2} az={az:F2} | gx={gx:F1} gy={gy:F1} gz={gz:F1}";
             return;
         }
+
 
         // Fallback preview for unexpected lengths
         var hex = BitConverter.ToString(bytes, 0, Math.Min(bytes.Length, 32));
