@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.3130029, g: 0.5501603, b: 0.8220557, a: 1}
+  m_IndirectSpecularColor: {r: 0.3135636, g: 0.5501241, b: 0.8218921, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -860,7 +860,7 @@ RectTransform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1726748564}
   m_LocalRotation: {x: 0.42261824, y: -0.0000000043663007, z: -0.0000000051429647, w: 0.90630776}
-  m_LocalPosition: {x: 0, y: 0, z: -238}
+  m_LocalPosition: {x: 0, y: 0, z: -368.2}
   m_LocalScale: {x: 1.0995, y: 1.7828, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -868,8 +868,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 205.91, y: 0.000038146973}
-  m_SizeDelta: {x: 200, y: 50}
+  m_AnchoredPosition: {x: 247.8, y: -109.3}
+  m_SizeDelta: {x: 276.2, y: 240.7}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1726748566
 MonoBehaviour:
@@ -1018,7 +1018,7 @@ Light:
   m_BounceIntensity: 1
   m_ColorTemperature: 6570
   m_UseColorTemperature: 0
-  m_BoundingSphereOverride: {x: 9.23e-43, y: 1.61e-43, z: 0, w: -3.569269e+30}
+  m_BoundingSphereOverride: {x: 1.02e-43, y: 2.5e-44, z: 1.8567e-41, w: 2.3509887e-38}
   m_UseBoundingSphereOverride: 0
   m_UseViewFrustumForShadowCasterCull: 1
   m_ShadowRadius: 0
