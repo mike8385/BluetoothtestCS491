@@ -5,6 +5,32 @@ using System;
 using Android.BLE.Commands;
 using UnityEngine.Android;
 
+//NOTE: You cannot use OVR use OXR, OVR is an older system and both were active and they caused issues
+//ALSO this is the only file I made, the others were apart of the Github repo I found by Velorexe (https://github.com/Velorexe/Unity-Android-Bluetooth-Low-Energy)
+/********************
+    NOTE: HOW BLUETOOTH WORKS (In basic dumbed down terms): 
+    (I Had to figure it out on my own so if this doesnt make sense, I apologize Im still not 100% sure)   
+    
+    1.) SCAN: You scan and find nearby devices
+        -BLE devices send broadcast advertisements that contain device name, MAC address, UUIDs (optional), and signal strength
+        -Scanning isnt connecting, just a way of saying "I see you"
+    2.) CONNECT: Establish a BLE session
+        -Before connecting, you ONLY hear broadcast advertisements. Only AFTER you connect you get access to the internal "BLE database"
+        -Connecting establishes GATT session
+    3.) DISCOVER SERVICES: Read the "Database structure", like a folder on the device
+        -When you connect to a BLE device you are connecting to a GATT server, which is basically a tiny database inside the device
+        -These UUIDs tell BLE which service/characteristic (“pipe”) you want to access.
+        -They DO NOT explain the data format or how to use the pipe — that is defined by the characteristic’s PROPERTIES (READ / WRITE / NOTIFY).
+        -Its designed this way so that it can expose data in a standard way, the services have a UUID and so do the characteristics
+    4.) SUBSCRIBE: Listen for notifications
+        -Tells the PICO, whenever this value changes, send me notifications
+        -Cannot recieve IMU data unless you subscribe. Scanning wont give you data nor connecting, only notifications
+    5.) RECIEVE DATA: Your callback fires with IMU bytes
+        -Callbacks are functions that BLE systems will call later when something happens, you dont call them yourself
+        -They get called when events happen
+              
+********************/
+
 
 //Finds the adapter and attaches event handlers
 
@@ -16,7 +42,7 @@ public class BleUIListener : MonoBehaviour
     private bool isConnecting = false;
     private bool _connected = false;
 
-    public Transform jackhammer;
+    public Transform jackhammer; //The object you drag into the inspector
 
     private Vector3 currentRotation = Vector3.zero;
     private float rotationSpeed = 1.0f;
@@ -24,15 +50,15 @@ public class BleUIListener : MonoBehaviour
 
 
     // Replace with your MPU6050 BLE service UUID
-    //private const string IMU_SERVICE_UUID = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"; 
-    // private const string IMU_CHARACTERISTIC_UUID = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"; // TX from Pico
-    // Replace your two IMU consts with these three:
-    private const string NUS_SERVICE = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E";
-    private const string NUS_RX_UUID = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"; // Write (phone -> Pico)
-    private const string NUS_TX_UUID = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"; // Notify (Pico -> phone)
+    private const string NUS_SERVICE = "6E400001-B5A3-F393-E0A9-E50E24DCCA9E"; //Identifies the entire Nordic UART service (folder)
+    private const string NUS_RX_UUID = "6E400002-B5A3-F393-E0A9-E50E24DCCA9E"; // Write (Quest -> Pico)
+    private const string NUS_TX_UUID = "6E400003-B5A3-F393-E0A9-E50E24DCCA9E"; // Notify (Pico -> Quest)
 
+    //The MAC address of PICO-IMU (Might change depending on wifi, so far it hasnt changed)
     private const string TARGET_MAC = "28:CD:C1:14:B8:3C";
 
+    //Initially the data was sent as 1 package of floats in the python code, around 26 bytes, but the script only allowed for 20 bytes
+    //So instead, we send it as integers, in 2 packages, the accel and gyro. Then we convert said numbers to floats in C#
     private float[] _acc3, _gyro3;
 
 
@@ -48,7 +74,8 @@ public class BleUIListener : MonoBehaviour
     }
 
 
-
+    //IEnumerator start to try to avoid crashing when you first load it after installing the APK
+    //I am pretty sure the issue is the the Location permission issues. Havent figured out how to stop the crashing
     private System.Collections.IEnumerator Start()
     {
 
@@ -69,7 +96,10 @@ public class BleUIListener : MonoBehaviour
             yield return null;
         }
 
+        //The unity component, it handles callbacks raised from Android
+        //It provides events like forwarding device discovery, errors, and completed commands
         adapter = FindObjectOfType<BleAdapter>();
+
         if (!adapter) { Debug.LogError("BleAdapter not found!"); yield break; }
 
         adapter.OnErrorReceived += OnBleError;
@@ -77,66 +107,36 @@ public class BleUIListener : MonoBehaviour
 
         if (logText) logText.text = "Ready to scan for BLE devices...";
 
+        //Singleton that handles the entire BLE stack on Android
         BleManager.Instance.Initialize();
 
         // small delay to let adapter settle
         yield return new WaitForSeconds(0.25f);
 
-        BleManager.Instance.QueueCommand(new DiscoverDevices(OnDeviceFound, OnScanFinished));
+        //DiscoverDevices allows the BLE to scan for devices and calls a callback for a seen device
+        //The Quest listens, and everytime a BLE device advertises, the plugin calls OnDeviceFound(address, name)
+        BleManager.Instance.QueueCommand(new DiscoverDevices(OnDeviceFound, OnScanFinished)); //This STARTS the scanning
     }
 
 
-    // //Dont think we use this anymore
-    // private void OnBleDataReceived(BleObject obj)
-    // {
-    //     if (!string.IsNullOrEmpty(obj.Base64Message))
-    //     {
-    //         try
-    //         {
-    //             //Assumed the pico sends 6 floats (ax,ay,az,gx,gy,gz) as raw bytes
-    //             //It converts it to an array and extract each float
-    //             byte[] bytes = Convert.FromBase64String(obj.Base64Message);
 
-    //             // Make sure length is 24 bytes (6 floats)
-    //             if (bytes.Length >= 24)
-    //             {
-    //                 float ax = BitConverter.ToSingle(bytes, 0);
-    //                 float ay = BitConverter.ToSingle(bytes, 4);
-    //                 float az = BitConverter.ToSingle(bytes, 8);
-    //                 float gx = BitConverter.ToSingle(bytes, 12);
-    //                 float gy = BitConverter.ToSingle(bytes, 16);
-    //                 float gz = BitConverter.ToSingle(bytes, 20);
-
-    //                 string msg = $"ax={ax:F2} ay={ay:F2} az={az:F2} | gx={gx:F0} gy={gy:F0} gz={gz:F0}";
-    //                 Debug.Log(msg);
-    //                 if (logText != null)
-    //                     logText.text = msg;
-    //             }
-    //         }
-    //         catch (Exception e)
-    //         {
-    //             Debug.LogError("Failed to decode BLE data: " + e);
-    //         }
-    //     }
-    //     else
-    //     {
-    //         if (logText != null)
-    //             logText.text = "No data received yet";
-    //     }
-    // }
 
     //Filters PICO by name or exact MAC address. If it matches and we arent connected, it queues it to ConnectToDevice
-    private void OnDeviceFound(string address, string name)
+    //I think this is where it goes onceit scans and finds a device, and this function allows us to connect
+    private void OnDeviceFound(string address, string name) //When the device is found, filters to only the pico then calls Connect
     {
         bool looksLikePico =
             (!string.IsNullOrEmpty(name) && name.IndexOf("PICO", StringComparison.OrdinalIgnoreCase) >= 0)
             || string.Equals(NormalizeMac(address), NormalizeMac(TARGET_MAC), StringComparison.OrdinalIgnoreCase);
 
-        if (!looksLikePico || isConnecting) return;
+        if (!looksLikePico || isConnecting) return; //This stops it from continuously connecting to devices all the time
+        //Note: This might be why it wont reconnect once we loose connection
         isConnecting = true;
 
         Debug.Log($"Found device: {name} ({address})");
         if (logText) logText.text = $"Found: {name}";
+
+        //It opens a low-power radio link, and allows us to read and write as well as subscribe to notifications
         BleManager.Instance.QueueCommand(new ConnectToDevice(address, OnDeviceConnected, OnBleError));
     }
 
@@ -151,7 +151,7 @@ public class BleUIListener : MonoBehaviour
     }
 
     //Marks it as connected then starts a coroutine to subscribe a short moment later
-    private void OnDeviceConnected(string address)
+    private void OnDeviceConnected(string address) //Starts the subscribe coroutine
     {
         isConnecting = false;
         _connected = true;
@@ -168,12 +168,13 @@ public class BleUIListener : MonoBehaviour
         // small grace after connect
         yield return new WaitForSeconds(0.3f);
 
+
         Action doSub = () => BleManager.Instance.QueueCommand(
-            new SubscribeToCharacteristic(
+            new SubscribeToCharacteristic( //This allows us to subscribe to characterisitc so we recieve IMU notifications
                 address,
                 NUS_SERVICE.ToLowerInvariant(),   // safest: lowercase
                 NUS_TX_UUID.ToLowerInvariant(),
-                OnCharacteristicChanged,
+                OnCharacteristicChanged, //Everytime the Pico sends IMU data, the plugin fires this callback, this is the ONLY place you get data
                 true                               // customGatt must be true for 128-bit UUIDs
             )
         );
@@ -216,10 +217,6 @@ public class BleUIListener : MonoBehaviour
 
 
 
-
-
-
-
     // helper class for parsing
     [Serializable]
     public class MyIMUData
@@ -247,35 +244,10 @@ public class BleUIListener : MonoBehaviour
     }
 
 
-    // private void OnCharacteristicChanged(byte[] bytes) //ALlows us to get the data as numbers
-    // {
-    //     try
-    //     {
-    //         if (bytes.Length >= 24)
-    //         {
-    //             float ax = BitConverter.ToSingle(bytes, 0);
-    //             float ay = BitConverter.ToSingle(bytes, 4);
-    //             float az = BitConverter.ToSingle(bytes, 8);
-    //             float gx = BitConverter.ToSingle(bytes, 12);
-    //             float gy = BitConverter.ToSingle(bytes, 16);
-    //             float gz = BitConverter.ToSingle(bytes, 20);
-
-    //             string msg = $"ax={ax:F2} ay={ay:F2} az={az:F2} | gx={gx:F0} gy={gy:F0} gz={gz:F0}";
-    //             Debug.Log(msg);
-    //             if (logText != null)
-    //                 logText.text = msg;
-    //         }
-    //     }
-    //     catch (Exception e)
-    //     {
-    //         Debug.LogError("Failed to decode BLE characteristic data: " + e);
-    //     }
-    // }
-
 
     //Notification Handler, if its byte length is 24, it parses 6 floats (sx,ay,az,gx,gy,gz)
     //If its byte length is 12, then it trys to decide if its accel or gyro (only makes sense if you purposely send two seperate 12 byte floats)
-    private void OnCharacteristicChanged(byte[] bytes)
+    private void OnCharacteristicChanged(byte[] bytes) //Data arrives
     {
         try
         {
@@ -338,16 +310,17 @@ public class BleUIListener : MonoBehaviour
         if (logText) logText.text = msg;
     }
 
+    //This allows the object to rotate given the IMU data
     private void UpdateRotation(float gx, float gy, float gz)
-{
-    float dt = Time.deltaTime;
+    {
+        float dt = Time.deltaTime;
 
-    // Gyro values are degrees/sec, integrate to degrees
-    currentRotation.x += gx * dt;
-    currentRotation.y += gy * dt;
-    currentRotation.z += gz * dt;
+        // Gyro values are degrees/sec, integrate to degrees
+        currentRotation.x += gx * dt;
+        currentRotation.y += gy * dt;
+        currentRotation.z += gz * dt;
 
-    if (jackhammer != null)
-        jackhammer.localRotation = Quaternion.Euler(currentRotation);
-}
+        if (jackhammer != null)
+            jackhammer.localRotation = Quaternion.Euler(currentRotation);
+    }
 }
