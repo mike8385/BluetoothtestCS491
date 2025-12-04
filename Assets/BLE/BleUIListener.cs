@@ -74,7 +74,7 @@ public class BleUIListener : MonoBehaviour
     }
 
 
-    //IEnumerator start to try to avoid crashing when you first load it after installing the APK
+    //IEnumerator(Coroutine) start to try to avoid crashing when you first load it after installing the APK
     //I am pretty sure the issue is the the Location permission issues. Havent figured out how to stop the crashing
     private System.Collections.IEnumerator Start()
     {
@@ -216,7 +216,6 @@ public class BleUIListener : MonoBehaviour
     }
 
 
-
     // helper class for parsing
     [Serializable]
     public class MyIMUData
@@ -227,6 +226,7 @@ public class BleUIListener : MonoBehaviour
 
 
     //Logs the error, restart states, and restarts scanning
+    //rescan isn't working for some reason, so when IMU disconnects, you have to restart the game
     private void OnBleError(string error)
     {
         isConnecting = false;
