@@ -235,14 +235,18 @@ public class BleUIListener : MonoBehaviour
         Debug.LogError("BLE Error: " + error);
         if (logText) logText.text = "Error: " + error;
 
-        // Always resume scanning on disconnect / GATT fail
-        var e = error.ToLowerInvariant();
-        if (e.Contains("disconnect") || e.Contains("cant find") || e.Contains("gatt") || e.Contains("closed"))
-        {
-            BleManager.Instance.QueueCommand(new DiscoverDevices(OnDeviceFound, OnScanFinished));
-        }
+        // Reinitialize BLE stack
+        BleManager.Instance.Initialize();
+
+        // Restart scanning after short delay
+        StartCoroutine(RestartScanDelay());
     }
 
+    private System.Collections.IEnumerator RestartScanDelay()
+    {
+        yield return new WaitForSeconds(0.4f);
+        BleManager.Instance.QueueCommand(new DiscoverDevices(OnDeviceFound, OnScanFinished));
+    }
 
 
     //Notification Handler, if its byte length is 24, it parses 6 floats (sx,ay,az,gx,gy,gz)
