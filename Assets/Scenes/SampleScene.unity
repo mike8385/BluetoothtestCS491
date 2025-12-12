@@ -38,7 +38,7 @@ RenderSettings:
   m_ReflectionIntensity: 1
   m_CustomReflection: {fileID: 0}
   m_Sun: {fileID: 0}
-  m_IndirectSpecularColor: {r: 0.3135636, g: 0.5501241, b: 0.8218921, a: 1}
+  m_IndirectSpecularColor: {r: 0.3130029, g: 0.5501603, b: 0.8220557, a: 1}
   m_UseRadianceAmbientProbe: 0
 --- !u!157 &3
 LightmapSettings:
@@ -266,17 +266,21 @@ PrefabInstance:
       propertyPath: m_Name
       value: Left Hand Tracking UI
       objectReference: {fileID: 0}
+    - target: {fileID: 2201191160657683226, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2473781947256150372, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_text
       value: 
       objectReference: {fileID: 0}
     - target: {fileID: 2473781947256150374, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2473781947256150374, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2473781947256150374, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_SizeDelta.x
@@ -284,19 +288,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2473781947256150374, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 0
+      value: 14
       objectReference: {fileID: 0}
     - target: {fileID: 2473781947256150374, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 0
+      value: -40.045
       objectReference: {fileID: 0}
     - target: {fileID: 2473781948137437939, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 0
+      value: 227.15
       objectReference: {fileID: 0}
     - target: {fileID: 2473781948137437939, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 0
+      value: 80.09
       objectReference: {fileID: 0}
     - target: {fileID: 2473781948137437944, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_Color.a
@@ -332,11 +336,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4658615489679539978, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4658615489679539978, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4658615489679539978, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_SizeDelta.x
@@ -352,11 +356,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4658615489679539978, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 0
+      value: 113.575
       objectReference: {fileID: 0}
     - target: {fileID: 4658615489679539978, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 0
+      value: -40.045
       objectReference: {fileID: 0}
     - target: {fileID: 5335677042417263719, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_LocalPosition.x
@@ -833,6 +837,7 @@ GameObject:
   m_Component:
   - component: {fileID: 510341061}
   - component: {fileID: 510341060}
+  - component: {fileID: 510341062}
   m_Layer: 0
   m_Name: HandLogger
   m_TagString: Untagged
@@ -869,6 +874,19 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &510341062
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 510341059}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc3ec6a0bff29f446b03b1149a2b4975, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  record: 1
 --- !u!1001 &588560909
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -958,17 +976,21 @@ PrefabInstance:
       propertyPath: m_Name
       value: Right Hand Tracking UI
       objectReference: {fileID: 0}
+    - target: {fileID: 2201191160657683226, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 2473781947256150372, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_text
       value: 
       objectReference: {fileID: 0}
     - target: {fileID: 2473781947256150374, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2473781947256150374, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2473781947256150374, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_SizeDelta.x
@@ -976,19 +998,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2473781947256150374, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 0
+      value: 14
       objectReference: {fileID: 0}
     - target: {fileID: 2473781947256150374, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 0
+      value: -40.045
       objectReference: {fileID: 0}
     - target: {fileID: 2473781948137437939, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 0
+      value: 227.15
       objectReference: {fileID: 0}
     - target: {fileID: 2473781948137437939, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_SizeDelta.y
-      value: 0
+      value: 80.09
       objectReference: {fileID: 0}
     - target: {fileID: 2473781948137437944, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_Color.a
@@ -1024,11 +1046,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4658615489679539978, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4658615489679539978, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 4658615489679539978, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_SizeDelta.x
@@ -1044,11 +1066,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4658615489679539978, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 0
+      value: 113.575
       objectReference: {fileID: 0}
     - target: {fileID: 4658615489679539978, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: 0
+      value: -40.045
       objectReference: {fileID: 0}
     - target: {fileID: 5335677042417263719, guid: 0fe8d4e487c6b62448dd668d56c05666, type: 3}
       propertyPath: m_LocalPosition.x
@@ -1846,7 +1868,7 @@ Light:
   m_BounceIntensity: 1
   m_ColorTemperature: 6570
   m_UseColorTemperature: 0
-  m_BoundingSphereOverride: {x: 1.02e-43, y: 1.7e-44, z: 8.923e-42, w: 0}
+  m_BoundingSphereOverride: {x: 1.02e-43, y: 0, z: 1.8454e-41, w: 0}
   m_UseBoundingSphereOverride: 0
   m_UseViewFrustumForShadowCasterCull: 1
   m_ShadowRadius: 0
