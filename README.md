@@ -54,7 +54,12 @@
 
 ---
 
-## IMPORTANT CODE FILES
+## IMPORTANT CODE FILES AND HOW TO SET UP THE IMU CIRCUIT
+
+### HOW TO SET UP CIRCUIT
+
+Here is a youtube link on how to put the wiring together for the IMU Circuit.
+https://www.youtube.com/watch?v=HezXoT12E40&t=9&authuser=1
 
 ### HandTracking.cs
 
@@ -87,6 +92,8 @@ Inside this loop, the accelerometer and gyroscope values are retrieved, formatte
 The data transmission occurs at approximately 50 Hz, which is sufficient for motion tracking applications such as virtual reality input or gesture recognition.
 
 Overall, this program transforms the Raspberry Pi Pico W and MPU6050 into a wireless IMU streaming device, acting as a bridge between physical motion sensors and a VR system by delivering real-time movement data over Bluetooth Low Energy.
+
+FYI: The files should still be on the PI, but in case they're lost, you should find it in the directory.
 
 ---
 
@@ -196,3 +203,4 @@ Make a new folder named **BLE** in the assets folder and drag in the existing **
 - Then, in the inspector, check the **record** box
 - While the game is running, it will freeze for a second at 45 seconds. This is because the hand values are stored in the CSV file.
 - When testing your code, it's best practice to turn off Handtracking by unchecking the **Record** box in the inspector, as it will continue to store these files in the headset, wasting memory.
+
