@@ -151,5 +151,3 @@ while True:
 
     sleep(0.02)  # ~50 Hz
 
-
-Can you explain what this code does
