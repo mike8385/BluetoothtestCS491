@@ -224,4 +224,10 @@ Make a new folder named **BLE** in the assets folder and drag in the existing **
 - While the game is running, it will freeze for a second at 45 seconds. This is because the hand values are stored in the CSV file.
 - When testing your code, it's best practice to turn off Handtracking by unchecking the **Record** box in the inspector, as it will continue to store these files in the headset, wasting memory.
 
+## Next Steps
+- Try to prevent the game from freezing when building CSV files
+- Add a quit button into the game
+- Get position tracking working for the IMU
+- Stop the IMU from drifting
+- Get a Bluetooth Reconnection function working to prevent having to restart the game all the time
 
