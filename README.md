@@ -26,7 +26,12 @@
 - Then click on the “Projects” tab
 - Click on **Add → Add project from disk**
 - Locate where you cloned the repository and open the folder named **BluetoothtestCS491**
-- Once the project is opened, click on **File → Build Settings**
+- Click on Edit, then Project Settings(We are going to confirm that the hand tracking is enabled)
+- Click on XR Plug-in Management, click on the Android tab and make sure that the OpenXR check box is checked
+- Then Click on OpenXR and then click on the Android tab
+- Check the Hand Tracking Subsystem and Meta Quest Support checkboxes
+- Then click the plus button and add the Hand Interaction Profile, Meta Quest Touch Pro Controller Profile, and Meta Quest Touch Plus Controller Profile
+- Close out of the window, then click on **File → Build Settings**
 - Switch the Platform to **Android** if needed
 - Then click **Build**
 - After building, open SideQuest and plug in the VR headset into the computer with a USB-C cable
@@ -41,16 +46,20 @@
 - Reopen the game, and now you should see the IMU object in the game, rotating with the real-life counterparts' rotation
 - Every 45 seconds, the game will paste the location and rotation of the player's hands + joints onto a CSV file that we will extract later (this will cause the game to freeze for a second, so don’t panic if you think the game crashed)
 
+## How to Quit Out of Game
+- Turn your palm to face towards you, and pinch with your thumb and index finger, the Meta Quest Home Screen should appear
+- pinch on the Quit button to shut down the game
+
 ---
 
-## How to Locate the CSV File
+## How to Locate the CSV Files
 
 - Open up SideQuest and make sure the headset is plugged into the computer
 - Then, in SideQuest, on the top right, click on the **Manage files on the headset** button
 - Then click on **Android → data → com.unity.template.vr → files**
 - Inside the files folder, you should see a CSV file named something like  
-  **HandRecording_2025-12-12_13-15-54**
-- Download this file onto your computer and open it to see the values printed
+  **HandRecording_LEFT_2025-12-12_13-15-54**, **HandRecording_RIGHT_2025-12-12_13-15-54**, and **IMU_Recording_2025-12-16_00-32-01.csv**
+- Download these files onto your computer and open it to see if the values printed
 
 ---
 
@@ -67,7 +76,7 @@ HandTracking.cs is useful for the sake of recreating the patient's movements for
 
 ### BleUIListener.cs
 
-BleUIListener.cs is crucial for the Bluetooth connection, as it enables Unity to establish a Bluetooth connection and communicate with an Android device. It works by scanning for a Bluetooth device, which is filtered specifically to find the IMU’s MAC address and name. After it finds the pico, it connects to the device and subscribes to its characteristics, and waits for the notifications to collect data. If it fails to connect initially, it rescans until it finds the pico and successfully connects to it.
+BleUIListener.cs is crucial for the Bluetooth connection, as it enables Unity to establish a Bluetooth connection and communicate with an Android device. It works by scanning for a Bluetooth device, which is filtered specifically to find the IMU’s MAC address and name. After it finds the pico, it connects to the device and subscribes to its characteristics, and waits for the notifications to collect data. If it fails to connect initially, it rescans until it finds the pico and successfully connects to it. Also houses the code for creating the IMU csv creation to track the IMU's position and rotation.
 
 ### Main.py
 
@@ -136,6 +145,14 @@ FYI: The files should still be on the PI, but in case they're lost, you should f
   - Click on **Add package by name**  
   - Type in **com.unity.xr.hands** and install the package  
   - After installing the package, click on samples, and import the **HandVisualizer** asset
+ 
+- Enable Hand Tracking in the Game  
+  - Click on Edit, then Project Settings
+  - Click on XR Plug-in Management, click on the Android tab and make sure that the OpenXR check box is checked
+  - Then Click on OpenXR and then click on the Android tab
+  - Check the Hand Tracking Subsystem and Meta Quest Support checkboxes
+  - Then click the plus button and add the Hand Interaction Profile, Meta Quest Touch Pro Controller Profile, and Meta Quest Touch Plus Controller Profile
+  - Close out of the window
 
 - Make sure the TextMesh Pro is downloaded (If you want to set up an output textbox of data)  
   - Same as installing XR Plugin Management, but download TextMesh Pro instead
@@ -162,7 +179,7 @@ Make a new folder named **BLE** in the assets folder and drag in the existing **
 
 ---
 
-## Bluetooth
+## Bluetooth + Enabling Recording for the IMU position and rotation CSV
 
 - Make a new empty object named **BleAdapter**
 - Drag the **BleAdapter** script from **Assets → Plugins → Runtime → BLE** and attach it to the object
@@ -170,6 +187,9 @@ Make a new folder named **BLE** in the assets folder and drag in the existing **
 - Drag the **BleUIListener** script from **Assets → BLE** and attach it to the object in the inspector
 - In the BleUIListener object inspector, drag the **Text Mesh Pro** object and attach it to the **Log Text** part of the script in the inspector
 - Do the same thing as the step above, but with the object you want to track, and drag it into the **Jackhammer** slot
+- Then check the Record box to enable recording IMU postion and rotation to a CSV file
+- The file will record every 45 seconds the player spends in game
+- When testing your code, it's best practice to turn off the IMU tracking by unchecking the **Record** box in the inspector, as it will continue to store these files in the headset, wasting memory.
 
 ---
 
@@ -203,4 +223,5 @@ Make a new folder named **BLE** in the assets folder and drag in the existing **
 - Then, in the inspector, check the **record** box
 - While the game is running, it will freeze for a second at 45 seconds. This is because the hand values are stored in the CSV file.
 - When testing your code, it's best practice to turn off Handtracking by unchecking the **Record** box in the inspector, as it will continue to store these files in the headset, wasting memory.
+
 
